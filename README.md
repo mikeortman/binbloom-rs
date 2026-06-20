@@ -1,13 +1,25 @@
-# binbloom-rs
+# binbloom
 
-A safe, from-scratch Rust reimplementation of [Quarkslab's binbloom](https://github.com/quarkslab/binbloom):
+A **pure-Rust, memory-safe port** of [Quarkslab's binbloom](https://github.com/quarkslab/binbloom):
 a tool that analyses a raw binary firmware image and determines, using
 statistical heuristics, its **endianness**, its **base/loading address**, and
 the location of an automotive **UDS database** (if any).
 
-This port is `#![forbid(unsafe_code)]`, uses `thiserror` for error handling, is
-multi-threaded for the expensive candidate-refinement step, and ships with an
-extensive unit + integration test suite.
+It is a faithful, from-scratch reimplementation that aims to produce the same
+results as the original C tool while being safe by construction: it contains
+**no `unsafe` code** (`#![forbid(unsafe_code)]`) and ships with an extensive
+unit + integration test suite. The expensive candidate-refinement step can be
+parallelised, with **optional multithreading via [rayon](https://crates.io/crates/rayon)**
+behind a Cargo feature.
+
+Versioning tracks upstream: this crate's **`2.1.0`** corresponds to binbloom
+**`v2.1`**. Released under the **Apache-2.0** license, matching the original
+([quarkslab/binbloom](https://github.com/quarkslab/binbloom)).
+
+```console
+cargo add binbloom        # library
+cargo install binbloom    # CLI
+```
 
 ## Layout
 

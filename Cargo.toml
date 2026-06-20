@@ -1,10 +1,14 @@
 [package]
-name = "binbloom-rs"
+name = "binbloom"
 version = "2.1.0"
 edition = "2021"
 rust-version = "1.75"
-description = "Raw firmware analysis: endianness, base address and UDS database detection. A safe, from-scratch Rust reimplementation of Quarkslab's binbloom."
+description = "A pure-Rust, memory-safe port of Quarkslab's binbloom: raw firmware analysis for endianness, base address and UDS database detection."
 license = "Apache-2.0"
+repository = "https://github.com/mikeortman/binbloom-rs"
+readme = "README.md"
+keywords = ["firmware", "reverse-engineering", "binary-analysis", "endianness", "uds"]
+categories = ["command-line-utilities", "development-tools", "embedded"]
 
 [[bin]]
 name = "binbloom"

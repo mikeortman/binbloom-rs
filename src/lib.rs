@@ -1,4 +1,6 @@
-//! Safe, from-scratch Rust reimplementation of Quarkslab's `binbloom`.
+//! A pure-Rust, memory-safe port of Quarkslab's `binbloom`
+//! (<https://github.com/quarkslab/binbloom>), released under the Apache-2.0
+//! license to match the original.
 //!
 //! `binbloom` analyses a raw binary firmware image and tries to determine,
 //! using statistical heuristics, three things:
@@ -8,8 +10,9 @@
 //! * the location of an automotive **UDS database** (if any).
 //!
 //! The crate is organised as a set of focused types, each owning the data and
-//! the operations it is responsible for. There are no free functions: every
-//! piece of behaviour is a method or associated function of a struct/enum.
+//! the operations it is responsible for. It contains no `unsafe` code, and the
+//! expensive refinement step can be parallelised (optionally via rayon, behind
+//! the `rayon` feature).
 //!
 //! The public entry point is [`Firmware`], which wires the individual engines
 //! ([`EndiannessDetector`], [`BaseAddressFinder`], [`UdsFinder`]) together.
