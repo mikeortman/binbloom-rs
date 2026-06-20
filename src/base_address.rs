@@ -429,12 +429,22 @@ impl<'a> BaseAddressFinder<'a> {
     }
 
     /// Refine candidates, optionally across threads. Order is preserved so the
-    /// result is deterministic regardless of thread count.
+    /// result is deterministic regardless of thread count or backend.
+    ///
+    /// The analysis itself is synchronous and runtime-agnostic: a single thread
+    /// when `nb_threads <= 1`, otherwise the built-in `std::thread` backend, or
+    /// rayon's work-stealing pool when the `rayon` feature is enabled.
     fn refine_candidates(&self, kept: &[Candidate], poi_list: &PoiList) -> Vec<ScoredCandidate> {
         if self.nb_threads <= 1 || kept.len() < 2 {
             return kept.iter().map(|c| self.refine_one(c, poi_list)).collect();
         }
+        self.refine_parallel(kept, poi_list)
+    }
 
+    /// Built-in parallel backend: split candidates into contiguous chunks across
+    /// scoped `std::thread`s, sharing `&self`/`&poi_list` read-only (no locks).
+    #[cfg(not(feature = "rayon"))]
+    fn refine_parallel(&self, kept: &[Candidate], poi_list: &PoiList) -> Vec<ScoredCandidate> {
         let n = kept.len();
         let nthreads = self.nb_threads.min(n);
         let chunk = n.div_ceil(nthreads);
@@ -456,6 +466,29 @@ impl<'a> BaseAddressFinder<'a> {
         });
 
         results
+    }
+
+    /// Rayon parallel backend (feature `rayon`): a work-stealing parallel map.
+    ///
+    /// `nb_threads` is honoured via a scoped pool so the `-t` flag stays
+    /// meaningful; the indexed `collect` keeps results in candidate order, so
+    /// the chosen base address is identical to the sequential path. If the pool
+    /// cannot be built, it falls back to rayon's global pool.
+    #[cfg(feature = "rayon")]
+    fn refine_parallel(&self, kept: &[Candidate], poi_list: &PoiList) -> Vec<ScoredCandidate> {
+        use rayon::prelude::*;
+        let run = || {
+            kept.par_iter()
+                .map(|c| self.refine_one(c, poi_list))
+                .collect::<Vec<_>>()
+        };
+        match rayon::ThreadPoolBuilder::new()
+            .num_threads(self.nb_threads)
+            .build()
+        {
+            Ok(pool) => pool.install(run),
+            Err(_) => run(),
+        }
     }
 
     /// Score a single candidate base address.

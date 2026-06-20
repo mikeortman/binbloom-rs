@@ -14,9 +14,16 @@ path = "src/main.rs"
 name = "binbloom"
 path = "src/lib.rs"
 
+[features]
+default = []
+# Opt-in parallel refinement backend. When enabled, candidate refinement uses
+# rayon's work-stealing pool instead of the built-in std::thread chunking.
+rayon = ["dep:rayon"]
+
 [dependencies]
 thiserror = "2"
 clap = { version = "4", features = ["derive"] }
+rayon = { version = "1", optional = true }
 
 [profile.release]
 opt-level = 3

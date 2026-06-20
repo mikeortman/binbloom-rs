@@ -72,11 +72,32 @@ if let Some(uds) = fw.find_uds(analysis.result.base_address) {
 # Ok::<(), binbloom::BinbloomError>(())
 ```
 
+## Parallelism
+
+The analysis is **synchronous and runtime-agnostic** — it pulls in no async
+runtime, so it drops cleanly into a plain `main`, a tokio app
+(`tokio::task::spawn_blocking`), or a rayon task. The expensive step
+(candidate refinement) is parallelised; everything is read-only shared across
+threads, so there are no locks and the result is deterministic regardless of
+thread count.
+
+Two interchangeable backends, selected at compile time:
+
+| Backend | When | Notes |
+|-|-|-|
+| `std::thread` | default | Scoped threads, contiguous chunks, zero extra deps |
+| `rayon` | `--features rayon` | Work-stealing pool, better load balancing |
+
+The `-t/--threads` flag controls the worker count in both (default 1; `<= 1`
+runs sequentially). The `rayon` feature is opt-in so the dependency is never
+forced on library consumers.
+
 ## Build & test
 
 ```console
-cargo build --release
-cargo test
+cargo build --release                  # std::thread backend
+cargo build --release --features rayon # rayon backend
+cargo test                  # and: cargo test --features rayon
 cargo clippy --all-targets
 ```
 
