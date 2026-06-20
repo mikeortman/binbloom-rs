@@ -1,0 +1,24 @@
+[package]
+name = "binbloom-rs"
+version = "2.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Raw firmware analysis: endianness, base address and UDS database detection. A safe, from-scratch Rust reimplementation of Quarkslab's binbloom."
+license = "Apache-2.0"
+
+[[bin]]
+name = "binbloom"
+path = "src/main.rs"
+
+[lib]
+name = "binbloom"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = "2"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
