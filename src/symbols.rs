@@ -29,27 +29,34 @@ impl SymbolFile {
     /// number of symbols added. Split out for testability.
     pub fn parse_into(text: &str, list: &mut PoiList) -> usize {
         let mut added = 0;
-        for line in text.lines() {
+        // binbloom only accepts a line terminated by '\n'; a final line with no
+        // trailing newline is dropped. Iterate complete lines and ignore any
+        // unterminated remainder after the last '\n'.
+        let mut rest = text;
+        while let Some(nl) = rest.find('\n') {
+            let line = &rest[..nl];
             if let Some(address) = Self::parse_line(line) {
                 if list.add_unique(address, 1, PoiType::Function) {
                     added += 1;
                 }
             }
+            rest = &rest[nl + 1..];
         }
         added
     }
 
-    /// Extract the address from a single line, if it is well-formed:
-    /// the first `0x`-prefixed token followed by whitespace and a name.
+    /// Extract the address from a single line, if it is well-formed: the first
+    /// `0x`-prefixed token followed by a space. Like binbloom, a trailing name
+    /// is optional (it only requires the space delimiter, not a name token).
     fn parse_line(line: &str) -> Option<u64> {
         let start = line.find("0x").or_else(|| line.find("0X"))?;
         let rest = &line[start + 2..];
 
-        // The hex digits run until the first whitespace; a name must follow.
-        let hex_end = rest.find(char::is_whitespace)?;
+        // The hex digits run until the first space (binbloom keys on ' ', so a
+        // tab does not terminate the value); a space delimiter must be present.
+        let hex_end = rest.find(' ')?;
         let hex = &rest[..hex_end];
-        let name = rest[hex_end..].trim();
-        if hex.is_empty() || name.is_empty() {
+        if hex.is_empty() {
             return None;
         }
 
@@ -70,6 +77,28 @@ mod tests {
         let offsets: Vec<u64> = list.iter().map(|p| p.offset).collect();
         assert_eq!(offsets, vec![0x0800_1000, 0x0800_1234]);
         assert!(list.iter().all(|p| p.poi_type == PoiType::Function));
+    }
+
+    #[test]
+    fn final_line_without_newline_is_dropped() {
+        // binbloom only accepts '\n'-terminated lines.
+        let mut list = PoiList::new();
+        assert_eq!(SymbolFile::parse_into("0x1000 main", &mut list), 0);
+
+        let mut list = PoiList::new();
+        assert_eq!(
+            SymbolFile::parse_into("0x1000 main\n0x2000 foo", &mut list),
+            1
+        );
+        assert_eq!(list.iter().next().unwrap().offset, 0x1000);
+    }
+
+    #[test]
+    fn accepts_address_with_space_but_no_name() {
+        // binbloom keys on the space delimiter, not a name token.
+        let mut list = PoiList::new();
+        assert_eq!(SymbolFile::parse_into("0x1000 \n", &mut list), 1);
+        assert_eq!(list.iter().next().unwrap().offset, 0x1000);
     }
 
     #[test]

@@ -175,24 +175,23 @@ impl PoiList {
     /// POIs. Mirrors `index_poi_strings`: a run that reaches the end of the
     /// buffer without a terminating non-printable byte is *not* recorded.
     pub fn append_strings(&mut self, content: &[u8], min_size: usize) {
-        let mut in_str = false;
-        let mut start = 0usize;
-        let mut count = 0i32;
+        // The run length is derived from buffer positions (in `usize`) rather
+        // than an incrementing counter, so it cannot overflow/panic on a
+        // multi-gigabyte printable run. The stored `count` wraps into `i32`
+        // exactly like binbloom's `int count` field.
+        let mut start: Option<usize> = None;
         for (cursor, &b) in content.iter().enumerate() {
             let printable = Self::is_print(b);
-            if !in_str {
-                if printable {
-                    in_str = true;
-                    start = cursor;
-                    count = 1;
+            match (start, printable) {
+                (None, true) => start = Some(cursor),
+                (Some(begin), false) => {
+                    let len = cursor - begin;
+                    if len >= min_size {
+                        self.add(begin as u64, len as i32, PoiType::String);
+                    }
+                    start = None;
                 }
-            } else if !printable {
-                in_str = false;
-                if count as usize >= min_size {
-                    self.add(start as u64, count, PoiType::String);
-                }
-            } else {
-                count += 1;
+                _ => {}
             }
         }
     }

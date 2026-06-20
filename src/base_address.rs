@@ -463,7 +463,10 @@ impl<'a> BaseAddressFinder<'a> {
         let delta = candidate.address;
         let psize = self.reader.size();
 
-        let mut array_score: u64 = 1;
+        // binbloom keeps `array_score` and the final `score` in 32-bit unsigned
+        // ints; the products are taken mod 2^32. We reproduce that so candidate
+        // selection and ranking match the reference on large firmware.
+        let mut array_score: u32 = 1;
         let mut found_valid_array = false;
 
         for poi in poi_list.iter().filter(|p| p.poi_type == PoiType::Array) {
@@ -480,15 +483,19 @@ impl<'a> BaseAddressFinder<'a> {
                     distinct.insert(v);
                 }
             }
-            let n_str_ptr = distinct.len();
+            // C counts these via a fresh address tree whose root is itself a
+            // leaf, so an array that resolves nothing still contributes 1.
+            let n_str_ptr = distinct.len().max(1);
             if n_str_ptr >= (poi.count as usize) / 3 && poi.count >= 10 {
                 found_valid_array = true;
             }
-            array_score += n_str_ptr as u64;
+            array_score = array_score.wrapping_add(n_str_ptr as u32);
         }
 
         let pointers = self.index_poi_pointers(delta);
-        let score = pointers.count() as u64 * candidate.votes as u64 * array_score;
+        let score = (pointers.count() as u32)
+            .wrapping_mul(candidate.votes as u32)
+            .wrapping_mul(array_score) as u64;
 
         ScoredCandidate {
             base_address: delta,

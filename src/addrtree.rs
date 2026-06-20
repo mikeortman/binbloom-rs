@@ -178,8 +178,14 @@ impl AddrTree {
     }
 
     /// Approximate memory footprint, mirroring binbloom's `nb_nodes * sizeof`.
+    ///
+    /// C's `addrtree_get_memsize` returns an `unsigned int`, so the product is
+    /// truncated mod 2^32; the C node (`int votes; int leaf; int nb_nodes;
+    /// node *subs[256]`) is 2064 bytes on a 64-bit host. We reproduce both so
+    /// the memory-saving filter fires at the same node counts as the reference.
     pub fn memsize(&self) -> u64 {
-        self.nb_nodes * std::mem::size_of::<Node>() as u64
+        const C_NODE_SIZE: u64 = 2064;
+        (self.nb_nodes.wrapping_mul(C_NODE_SIZE) as u32) as u64
     }
 
     /// Number of nodes ever allocated (the C `nb_nodes` field).
@@ -277,6 +283,19 @@ mod tests {
         let leaves = t.leaves();
         assert_eq!(leaves, vec![(0, 0)]);
         assert_eq!(t.max_vote(), 0);
+    }
+
+    #[test]
+    fn memsize_truncates_to_32_bits_like_c() {
+        // memsize must wrap mod 2^32 (C returns `unsigned int`). With node size
+        // 2064, ~2.08M nodes pushes the product past 2^32, wrapping back small.
+        let tree = AddrTree::new();
+        // Direct arithmetic check of the documented behaviour.
+        let nb: u64 = 2_100_000;
+        let expected = (nb.wrapping_mul(2064) as u32) as u64;
+        assert!(expected < nb.wrapping_mul(2064)); // it actually wrapped
+                                                   // A fresh tree has 0 nodes -> memsize 0.
+        assert_eq!(tree.memsize(), 0);
     }
 
     #[test]

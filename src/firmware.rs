@@ -176,11 +176,20 @@ impl Firmware {
         })
     }
 
-    /// Search for a UDS database given a known base address.
-    pub fn find_uds(&self, base: u64) -> Option<UdsResult> {
+    /// Search for a UDS database given a known base address, optionally seeded
+    /// with a known-symbols list (the `-f` functions file).
+    pub fn find_uds(&self, base: u64, symbols: Option<&PoiList>) -> Option<UdsResult> {
         let memory = self.memory_map();
         let endian = self.resolve_endianness();
-        UdsFinder::new(&self.content, self.arch, endian, &memory, self.logger).find(base)
+        UdsFinder::new(
+            &self.content,
+            self.arch,
+            endian,
+            &memory,
+            self.logger,
+            symbols,
+        )
+        .find(base)
     }
 
     fn make_finder<'a>(

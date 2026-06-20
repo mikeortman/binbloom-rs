@@ -94,9 +94,19 @@ documented at their call sites):
 - The UDS RID dedup set is fully cleared between runs (the C `memset` cleared
   only part of it, mishandling RIDs ≥ 0x3F).
 
-One faithfully-preserved quirk worth noting: a run of valid UDS request IDs is
-only recorded when it is *terminated* by a non-RID/repeat byte, mirroring how
-real UDS tables are bounded.
+For everything else the goal is **identical output to binbloom on the same
+input**, so the port deliberately reproduces the reference's 32-bit `unsigned
+int` arithmetic where it affects results — the refinement `score` and
+`array_score`, the address-tree `memsize` used by the memory-saving filter, and
+the array-detection value deltas all wrap mod 2³² exactly as the C does (done
+with checked `wrapping_*` ops, so there is no `unsafe` and no overflow panic).
+
+Faithfully-preserved quirks worth noting:
+
+- A run of valid UDS request IDs is only recorded when it is *terminated* by a
+  non-RID/repeat byte, mirroring how real UDS tables are bounded.
+- The symbol file (`-f`) only accepts `\n`-terminated `0x<hex> ` lines, and a
+  supplied symbol file is honored in both base-address and UDS modes.
 
 ## License
 

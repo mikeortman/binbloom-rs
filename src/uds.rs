@@ -86,16 +86,18 @@ pub struct UdsFinder<'a> {
     endian: Endianness,
     memory: &'a MemoryMap,
     logger: Logger,
+    symbols: Option<&'a PoiList>,
 }
 
 impl<'a> UdsFinder<'a> {
-    /// Create a finder.
+    /// Create a finder, optionally seeded with a known-symbols list.
     pub fn new(
         content: &'a [u8],
         arch: Arch,
         endian: Endianness,
         memory: &'a MemoryMap,
         logger: Logger,
+        symbols: Option<&'a PoiList>,
     ) -> Self {
         UdsFinder {
             content,
@@ -104,6 +106,7 @@ impl<'a> UdsFinder<'a> {
             endian,
             memory,
             logger,
+            symbols,
         }
     }
 
@@ -143,7 +146,7 @@ impl<'a> UdsFinder<'a> {
             false,
             1,
             false,
-            None,
+            self.symbols,
             self.logger,
         )
         .index_poi_pointers(base)

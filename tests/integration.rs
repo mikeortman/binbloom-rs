@@ -120,7 +120,7 @@ fn finds_uds_database() {
         .unwrap()
         .with_endianness(Endianness::Little);
 
-    let uds = fw.find_uds(base).expect("a UDS database is found");
+    let uds = fw.find_uds(base, None).expect("a UDS database is found");
     assert_eq!(uds.rid_count, 12);
     assert_eq!(uds.location, base + 4);
     assert_eq!(uds.structure.nb_members, 2);

@@ -118,20 +118,8 @@ impl Cli {
 
         println!("[i] File read ({} bytes)", firmware.len());
 
-        // UDS mode: a base address was supplied.
-        if let Some(base_str) = self.base.as_deref() {
-            let base = match Self::parse_number(base_str) {
-                Ok(b) => b,
-                Err(()) => {
-                    eprintln!("[!] invalid base address");
-                    return ExitCode::FAILURE;
-                }
-            };
-            println!("[i] Base address 0x{base:016x} provided.");
-            return Self::run_uds(&firmware, base);
-        }
-
-        // Base-address mode (optionally seeded with a symbols file).
+        // An optional symbols file seeds both modes, matching binbloom which
+        // loads it before dispatching on the presence of a base address.
         let symbols = match self.functions.as_deref() {
             Some(path) => {
                 let mut list = PoiList::new();
@@ -143,6 +131,19 @@ impl Cli {
             }
             None => None,
         };
+
+        // UDS mode: a base address was supplied.
+        if let Some(base_str) = self.base.as_deref() {
+            let base = match Self::parse_number(base_str) {
+                Ok(b) => b,
+                Err(()) => {
+                    eprintln!("[!] invalid base address");
+                    return ExitCode::FAILURE;
+                }
+            };
+            println!("[i] Base address 0x{base:016x} provided.");
+            return Self::run_uds(&firmware, base, symbols.as_ref());
+        }
 
         match firmware.find_base_address(symbols.as_ref()) {
             Ok(analysis) => {
@@ -156,8 +157,8 @@ impl Cli {
         }
     }
 
-    fn run_uds(firmware: &Firmware, base: u64) -> ExitCode {
-        match firmware.find_uds(base) {
+    fn run_uds(firmware: &Firmware, base: u64, symbols: Option<&PoiList>) -> ExitCode {
+        match firmware.find_uds(base, symbols) {
             Some(result) => {
                 Self::print_uds(firmware, &result);
                 ExitCode::SUCCESS
