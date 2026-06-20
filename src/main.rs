@@ -55,7 +55,7 @@ struct Cli {
     #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
     verbose: u8,
 
-    /// Firmware file to analyse.
+    /// Firmware file to analyse ("-" reads from stdin).
     firmware: String,
 }
 
@@ -96,7 +96,12 @@ impl Cli {
 
         let logger = Logger::new(LogLevel::from_verbosity(self.verbose));
 
-        let mut firmware = match Firmware::read(&self.firmware, arch) {
+        let loaded = if self.firmware == "-" {
+            Firmware::from_reader(std::io::stdin().lock(), arch)
+        } else {
+            Firmware::read(&self.firmware, arch)
+        };
+        let mut firmware = match loaded {
             Ok(fw) => fw,
             Err(e) => {
                 eprintln!("[!] {e}");

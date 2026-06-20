@@ -67,6 +67,18 @@ impl Firmware {
         Self::from_bytes(content, arch)
     }
 
+    /// Build a firmware by draining an arbitrary byte stream (stdin, a pipe, a
+    /// socket, a decompressor, ...) into memory.
+    ///
+    /// binbloom's heuristics make many random-access passes over the whole
+    /// image, so the full content must be resident: this reads the stream to
+    /// its end rather than processing it incrementally.
+    pub fn from_reader<R: std::io::Read>(mut reader: R, arch: Arch) -> Result<Self> {
+        let mut content = Vec::new();
+        reader.read_to_end(&mut content)?;
+        Self::from_bytes(content, arch)
+    }
+
     /// Force a specific endianness instead of auto-detecting.
     pub fn with_endianness(mut self, endian: Endianness) -> Self {
         self.endian = endian;
@@ -200,6 +212,23 @@ mod tests {
     fn too_small_file_rejected() {
         let err = Firmware::from_bytes(vec![0u8; 3], Arch::Bits32);
         assert!(matches!(err, Err(BinbloomError::FileTooSmall { .. })));
+    }
+
+    #[test]
+    fn from_reader_drains_stream() {
+        let bytes = vec![0xaau8; 64];
+        let cursor = std::io::Cursor::new(bytes.clone());
+        let fw = Firmware::from_reader(cursor, Arch::Bits32).unwrap();
+        assert_eq!(fw.content(), bytes.as_slice());
+    }
+
+    #[test]
+    fn from_reader_rejects_short_stream() {
+        let cursor = std::io::Cursor::new(vec![0u8; 2]);
+        assert!(matches!(
+            Firmware::from_reader(cursor, Arch::Bits32),
+            Err(BinbloomError::FileTooSmall { .. })
+        ));
     }
 
     #[test]

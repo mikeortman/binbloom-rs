@@ -44,6 +44,9 @@ binbloom -a 32 -e be -b 0x0 firmware.bin
 
 # Speed up refinement with threads; deep search
 binbloom -t 8 -d firmware.bin
+
+# Read the image from a stream instead of a file ("-" = stdin)
+cat firmware.bin | binbloom -a 32 -e le -
 ```
 
 Flags mirror the original: `-a/--arch`, `-b/--base`, `-e/--endian`,
@@ -55,6 +58,7 @@ Flags mirror the original: `-a/--arch`, `-b/--base`, `-e/--endian`,
 ```rust
 use binbloom::{Arch, Endianness, Firmware};
 
+// From a file, or from any `Read` stream via `Firmware::from_reader(...)`.
 let fw = Firmware::read("firmware.bin", Arch::Bits32)?
     .with_threads(8);
 
